@@ -40,6 +40,7 @@ CONFIG_MAIN = 'BenchVis'
 CONFIG_BASE_PATH = 'base_path'
 CONFIG_BASE_PATH_IS_REL = 'base_path_is_rel'
 CONFIG_SUFFIXES = 'col_suffixes'
+CONFIG_SUFFIX_SEP = 'col_suffix_sep'
 CONFIG_IGNORE_REGEX = 'ignore_regex'
 
 # Read config and initialize code
@@ -57,6 +58,7 @@ data = []
 keys = {}
 sub_keys = {}
 suffixes = config_list(main_cfg, CONFIG_SUFFIXES)
+suffix_sep = main_cfg[CONFIG_SUFFIX_SEP][1:-1]
 groups = []
 ignore_ident = re.compile(main_cfg[CONFIG_IGNORE_REGEX])
 
@@ -77,9 +79,11 @@ def writeFile(path,d):
 		writer.writerows(d)
 # Read file with header row and update keys
 def readFile(path,has_header=True):
-	global header,data,keys,sub_keys,suffixes,ignore_ident
+	global header,data,keys,sub_keys,suffixes,suffix_sep,ignore_ident
 	print('Reading file '+path)
 	first_row = has_header
+	int_matcher = re.compile('^[0-9]+$')
+	float_matcher = re.compile('^([0-9]+.[0-9]*)|([0-9]*.[0-9]+)$')
 	with open(path, 'rt') as csvfile:
 		reader = csv.reader(csvfile, skipinitialspace=True, delimiter=',', quotechar='"')
 		for row in reader:
@@ -89,8 +93,8 @@ def readFile(path,has_header=True):
 				header = row
 				for k in header:
 					for sk in suffixes:
-						if k.endswith(sk):
-							real_key = k[0:len(k)-len(sk)-1]
+						if k.endswith(suffix_sep+sk):
+							real_key = k[0:len(k)-len(sk)-len(suffix_sep)]
 							keys[real_key] = True
 							if not real_key in sub_keys:
 								sub_keys[real_key] = []
@@ -107,19 +111,21 @@ def readFile(path,has_header=True):
 				d = {}
 				for k,v in zip(header,row):
 					for sk in suffixes:
-						if k.endswith(' '+sk):
-							real_key = k[0:len(k)-len(sk)-1]
+						if k.endswith(suffix_sep+sk):
+							real_key = k[0:len(k)-len(sk)-len(suffix_sep)]
 							if not real_key in d:
 								d[real_key] = {}
-							if re.match('^[0-9]*$', v) != None:
+							if int_matcher.match(v) != None:
 								d[real_key][sk] = int(v)
-							else:
+							elif float_matcher.match(v) != None:
 								d[real_key][sk] = float(v)
+							else:
+								d[real_key][sk] = v
 							break
 					else:
-						if re.match('^[0-9]*$', v) != None:
+						if int_matcher.match(v) != None:
 							d[k] = int(v)
-						elif re.match('^[\.0-9]*$', v) != None:
+						elif float_matcher.match(v) != None:
 							d[k] = float(v)
 						else:
 							d[k] = v
@@ -539,7 +545,7 @@ def update_graph(	xaxis_column_sub_name,
 					yaxis_type,
 					group_checks,
 					loaded_files):
-	global data,keys,sub_keys,groups
+	global data,keys,sub_keys,groups,suffix_sep
 	global last_x_val, last_x_sub_val, last_x_min_val, last_x_max_val, last_y_val, last_y_sub_val, last_y_min_val, last_y_max_val, last_x_axis_type, last_y_axis_type
 	global x_data,y_data,label_data,data_groups,group_names
 	last_x_sub_val = xaxis_column_sub_name
@@ -562,7 +568,7 @@ def update_graph(	xaxis_column_sub_name,
 	if keys[last_x_val]:
 		# composite key
 		x_data = [[d[last_x_val][xaxis_column_sub_name] for d in data] for data in data_groups]
-		x_title = last_x_val+" "+xaxis_column_sub_name
+		x_title = last_x_val+suffix_sep+xaxis_column_sub_name
 		disable_x = False
 	else:
 		# normal key
@@ -572,7 +578,7 @@ def update_graph(	xaxis_column_sub_name,
 	if keys[last_y_val]:
 		# composite key
 		y_data = [[d[last_y_val][yaxis_column_sub_name] for d in data] for data in data_groups]
-		y_title = last_y_val+" "+yaxis_column_sub_name
+		y_title = last_y_val+suffix_sep+yaxis_column_sub_name
 		disable_y = False
 	else:
 		# normal key
@@ -599,7 +605,8 @@ def update_graph(	xaxis_column_sub_name,
 	for i in range(len(x_data)):
 		x_data[i], y_data[i], label_data[i] = cross_filter(
 			lambda x,y,z:
-				float(x) >= x_min
+				x != "" and y != "" and z != ""
+				and float(x) >= x_min
 				and float(x) <= x_max
 				and float(y) >= y_min
 				and float(y) <= y_max,
