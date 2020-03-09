@@ -37,16 +37,22 @@ def is_compound_key(key):
 
 CONFIG_FILE = 'config.ini'
 CONFIG_MAIN = 'BenchVis'
+CONFIG_DASH = 'Dash'
 CONFIG_BASE_PATH = 'base_path'
 CONFIG_BASE_PATH_IS_REL = 'base_path_is_rel'
 CONFIG_SUFFIXES = 'col_suffixes'
 CONFIG_SUFFIX_SEP = 'col_suffix_sep'
 CONFIG_IGNORE_REGEX = 'ignore_regex'
+CONFIG_DASH_HEIGHT = 'plot_height'
+CONFIG_DASH_MARKER_SIZE = 'marker_size'
+CONFIG_DASH_MARKER_OPACITY = 'marker_opacity'
+CONFIG_DASH_LINE_WIDTH = 'line_width'
 
 # Read config and initialize code
 config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
 main_cfg = config[CONFIG_MAIN]
+dash_cfg = config[CONFIG_DASH]
 if str_to_bool(main_cfg[CONFIG_BASE_PATH_IS_REL]):
 	base_path = os.path.abspath(os.path.dirname(__file__)) \
 		+'/'+main_cfg[CONFIG_BASE_PATH]
@@ -166,86 +172,104 @@ def make_dropdown(id,l):
 	return dcc.Dropdown(
 		id=id,
 		options=make_dropdown_options(l),
-		value="" if len(l) == 0 else l[0]
+		value="" if len(l) == 0 else l[0],
+		style={'display': 'inline-block', 'min-width': '50%'}
 	)
 def make_axis_type_radio(id):
 	return dcc.RadioItems(
 		id=id,
 		options=[{'label': i, 'value': i} for i in ['Linear', 'Log']],
 		value='Linear',
-		labelStyle={'display': 'block', 'margin-top': '10pt'}
+		labelStyle={'display': 'inline-block', 'margin-top': '10pt'}
 	)
-
+def make_details(title, *contents):
+	return html.Details([
+		html.Summary(title),
+		*contents
+	],style={
+		'padding': '.3em',
+		'border': 'solid .5px gray'
+	},open=True)
+def make_labeled_input(id, label, value, min_width='8em'):
+	return html.Div([
+		html.P(label,style={'display': 'inline-block'}),
+		dcc.Input(id=id, type='text', value=value,style={
+			'min-width': min_width,
+			'display': 'inline-block',
+			'margin-left': '10pt',
+			'margin-right': '10pt'
+		})
+	], style={'display': 'inline-block'})
 
 app.layout = html.Div([
 	html.Div([
-		html.Div([
+		make_details("Data controls",
 			html.Div([
-				html.P('X-Axis'),
+				html.P('X-Axis',style={'margin-top':'0px'}),
 				make_dropdown('xaxis-column',sorted_key_list),
 				make_dropdown('sub-xaxis-column',
 					[] if not sorted_key_list[0] in sub_keys
 					else sub_keys[sorted_key_list[0]]),
 				make_axis_type_radio('xaxis-type'),
-				html.P('Min val:',style={'display': 'inline-block'}),
-				dcc.Input(id='x-min-input', type='text', value='', style={'min-width': '2em','display': 'inline-block', 'margin-left': '10pt', 'margin-right': '10pt'}),
-				html.P('Max val:',style={'display': 'inline-block'}),
-				dcc.Input(id='x-max-input', type='text', value='', style={'min-width': '2em','display': 'inline-block', 'margin-left': '10pt', 'margin-right': '10pt'})
+				make_labeled_input('x-min-input','Min val:',''),
+				make_labeled_input('x-max-input','Max val:','')
 			],
-			style={'display': 'block'}),
-			html.Button('Swap X and Y', id='axis-swap', n_clicks_timestamp=0, style={'margin-top': '10pt','display': 'block'}),
+			style={'display': 'inline-block','padding': '.3em','border': 'solid .25px lightgray'}),
 			html.Div([
-				html.P('Y-Axis'),
+				html.P('Y-Axis',style={'margin-top':'0px'}),
 				make_dropdown('yaxis-column',sorted_key_list),
 				make_dropdown('sub-yaxis-column',
 					[] if not sorted_key_list[0] in sub_keys
 					else sub_keys[sorted_key_list[0]]),
 				make_axis_type_radio('yaxis-type'),
-				html.P('Min val:',style={'display': 'inline-block'}),
-				dcc.Input(id='y-min-input', type='text', value='', style={'min-width': '2em','display': 'inline-block', 'margin-left': '10pt', 'margin-right': '10pt'}),
-				html.P('Max val:',style={'display': 'inline-block'}),
-				dcc.Input(id='y-max-input', type='text', value='', style={'min-width': '2em','display': 'inline-block', 'margin-left': '10pt', 'margin-right': '10pt'})
+				make_labeled_input('y-min-input','Min val:',''),
+				make_labeled_input('y-max-input','Max val:','')
 			],
-			style={'display': 'block'})
-		], style={
-			'padding': '10pt',
-			'display': 'inline-block',
-			'vertical-align': 'top'
-		}),
-		html.Div([
-			html.P('Group data by'),
+			style={'display': 'inline-block','padding': '.3em','border': 'solid .25px lightgray'}),
+			html.Button('Swap Axes', id='axis-swap', n_clicks_timestamp=0, style={'margin': '10pt','display': 'inline-block'})
+		),
+		make_details("Grouping controls",
 			dcc.Checklist(
 				id='group-checks',
 				options=[ {'label': groups[i], 'value': i} for i in range(len(groups)) ],
 				value=[],
-				labelStyle={'display': 'block'}
+				labelStyle={'display': 'inline-block','margin-right': '5pt'},
+				style={
+					'max-height': '5em',
+					'overflow': 'auto',
+					'padding': '.3em'
+				}
 			)
-		], style={
-			'padding': '10pt',
-			'display': 'inline-block',
-			'vertical-align': 'top'
-		}),
-		html.Div([
-			html.P('Import data from:'),
-			dcc.Input(id='in-path-input', type='text', value=base_path, style={'min-width': '35em'}),
-			html.Button('Load', id='in-path-button', n_clicks_timestamp=0, style={'margin-top': '10pt', 'display': 'block'}),
-			dcc.Textarea(id='loaded-files-area', readOnly=True, value='\n'.join(loaded_files), style={'min-width': '35em', 'display': 'block', 'margin-top': '10pt'}),
-		], style={
-			'padding': '10pt',
-			'display': 'inline-block',
-			'vertical-align': 'top'
-		}),
-		html.Div([
-			html.P('Export current view to:'),
-			dcc.Input(id='export-input', type='text', value=base_path, style={'min-width': '35em'}),
-			html.Button('Export', id='export-button', n_clicks_timestamp=0, style={'margin-top': '10pt', 'display': 'block'}),
-			html.P('Last successful export:'),
-			dcc.Input(id='export-report', type='text', readOnly=True, value='Never', style={'min-width': '10em', 'display': 'inline-block'}),
-		], style={
-			'padding': '10pt',
-			'display': 'inline-block',
-			'vertical-align': 'top'
-		}),
+		),
+		make_details("Visualization controls",
+			make_labeled_input('vis-x-min','Min X:',''),
+			make_labeled_input('vis-x-max','Max X:',''),
+			make_labeled_input('vis-y-min','Min Y:',''),
+			make_labeled_input('vis-y-max','Max Y:','')
+		),
+		make_details("Import/Export",
+			html.Div([
+				html.P('Import data from:'),
+				dcc.Input(id='in-path-input', type='text', value=base_path, style={'min-width': '35em'}),
+				html.Button('Load', id='in-path-button', n_clicks_timestamp=0, style={'margin-top': '10pt', 'display': 'block'}),
+				dcc.Textarea(id='loaded-files-area', readOnly=True, value='\n'.join(loaded_files), style={'min-width': '35em', 'display': 'block', 'margin-top': '10pt'}),
+			], style={
+				'padding': '10pt',
+				'display': 'inline-block',
+				'vertical-align': 'top'
+			}),
+			html.Div([
+				html.P('Export current view to:'),
+				dcc.Input(id='export-input', type='text', value=base_path, style={'min-width': '35em'}),
+				html.Button('Export', id='export-button', n_clicks_timestamp=0, style={'margin-top': '10pt', 'display': 'block'}),
+				html.P('Last successful export:'),
+				dcc.Input(id='export-report', type='text', readOnly=True, value='Never', style={'min-width': '10em', 'display': 'inline-block'}),
+			], style={
+				'padding': '10pt',
+				'display': 'inline-block',
+				'vertical-align': 'top'
+			}),
+		),
 	], style={
 		'borderBottom': 'thin lightgrey solid',
 		'backgroundColor': 'rgb(250, 250, 250)',
@@ -273,8 +297,8 @@ last_y_val = 0
 last_y_sub_val = 0
 last_y_min_val = ''
 last_y_max_val = ''
-last_x_axis_type = 0
-last_y_axis_type = 0
+last_x_axis_type = 'Linear'
+last_y_axis_type = 'Linear'
 
 x_data = []
 y_data = []
@@ -282,27 +306,57 @@ label_data = []
 data_groups = [[]]
 group_names = []
 
+def get_visible_trace_mask(fig):
+	mask = [
+		'visible' in trace.keys()
+		and trace['visible'] == True
+		for trace in fig['data']
+	]
+	return mask
+def reduce_trace_name(n):
+	return re.compile('^(.*),[^,]*$').match(n).group(1)
+def get_visible_trace_names(fig):
+	mask = get_visible_trace_mask(fig)
+	names = [trace['name'] for trace in fig['data']]
+	return [
+		reduce_trace_name(name)
+		for name, b in zip(names,mask)
+		if b
+	]
+def get_invisible_trace_names(fig):
+	mask = get_visible_trace_mask(fig)
+	names = [trace['name'] for trace in fig['data']]
+	return [
+		reduce_trace_name(name)
+		for name, b in zip(names,mask)
+		if not b
+	]
+
 # Export data button pressed
 @app.callback(
 	Output('export-report'		, 'value'),
 	[Input('export-button'		, 'n_clicks_timestamp'),
-	 Input('export-input'		, 'value')])
-def export_data(click_t,path):
+	 Input('export-input'		, 'value')],
+	state=[dash.dependencies.State('indicator-scatter', 'figure')])
+def export_data(click_t,path,fig):
+	global suffix_sep
 	global last_export_click_t, x_data, y_data, label_data, data_groups, group_names, keys
 	global last_x_val, last_x_sub_val, last_y_val, last_y_sub_val, last_x_axis_type, last_y_axis_type
 	if ".csv" in path or ".tex" in path:
 		path = path[0:len(path)-4]
 	if int(click_t) > last_export_click_t:
 		last_export_click_t = int(click_t)
+		traces_enabled = get_visible_trace_mask(fig)
 		dout = []
 		x_key = last_x_val
 		y_key = last_y_val
 		if keys[last_x_val]:
-			x_key = last_x_val+' '+last_x_sub_val
+			x_key = last_x_val+suffix_sep+last_x_sub_val
 		if keys[last_y_val]:
-			y_key = last_y_val+' '+last_y_sub_val
+			y_key = last_y_val+suffix_sep+last_y_sub_val
 		dout.append(['Group',x_key,y_key])
 		for i in range(len(group_names)):
+			if not traces_enabled[i]: continue
 			group = group_names[i]
 			for x,y in zip(x_data[i],y_data[i]):
 				dout.append([group,x,y])
@@ -319,87 +373,47 @@ def export_data(click_t,path):
 			else:
 				axis_type = 'loglogaxis'
 
+		def texify(v):
+			return str(v) \
+				.replace('#','\\#') \
+				.replace('_','\\_')
 		texData = []
-		for xd,yd in zip(x_data,y_data):
-			texData.append(
-				'\t\t\\addplot coordinates {'+
-				' '.join(['('+str(x)+','+str(y)+')' for x,y in zip(xd,yd)])+
-				'};')
-		
-		lookupTable = {
-			'Error': {
-				'name': 'ERROR',
-				'style': '{Red,every mark/.append style={opacity=\plotopacity,fill=Red},mark=*}'
-			},
-			'BlossomIV': {
-				'name': 'BIV',
-				'style': '{Black,every mark/.append style={opacity=\plotopacity,fill=Black},mark=*}'
-			},
-			'BlossomV': {
-				'name': 'BV',
-				'style': '{Gray,every mark/.append style={opacity=\plotopacity,fill=Gray},mark=square*}'
-			},
-			'EdmondsBoost': {
-				'name': 'EB',
-				'style': '{Peach,every mark/.append style={opacity=\plotopacity,fill=Peach},mark=*}'
-			},
-			'EdmondsLemon': {
-				'name': 'EL',
-				'style': '{Apricot,every mark/.append style={opacity=\plotopacity,fill=Apricot},mark=square*}'
-			},
-			'MetaGraphs': {
-				'name': 'MG',
-				'style': '{NavyBlue,every mark/.append style={opacity=\plotopacity,fill=NavyBlue},mark=*}'
-			},
-			'MetaGraphsQPT': {
-				'name': 'MGL',
-				'style': '{Cerulean,every mark/.append style={opacity=\plotopacity,fill=Cerulean},mark=square*}'
-			},
-			'MetaGraphsWR': {
-				'name': 'MGB',
-				'style': '{ProcessBlue,every mark/.append style={opacity=\plotopacity,fill=ProcessBlue},mark=triangle*}'
-			},
-			'MultiTrees': {
-				'name': 'MT',
-				'style': '{TealBlue,every mark/.append style={opacity=\plotopacity,fill=TealBlue},mark=*}'
-			}
-		}
-		
-		entries = []
-		for group in group_names:
-			for k,v in lookupTable.items():
-				if k in group:
-					entries.append(v)
-					break
-			else:
-				entries.append(lookupTable['Error'])
-			
+		legend_entries = []
+		for enabled,xd,yd,gn in zip(traces_enabled,x_data,y_data,group_names):
+			if enabled:
+				texData.append(
+					'\t\t\\addplot coordinates {'+
+					' '.join(['('+texify(x)+','+texify(y)+')' for x,y in zip(xd,yd)])+
+					'};')
+				legend_entries.append(gn)
+
+		xrange = fig['layout']['xaxis']['range']
+		yrange = fig['layout']['yaxis']['range']
 		texCode = '\n'.join([
-			'\\begin{tikzpicture}',
-				'\t\pgfplotsset{every axis/.append style={',
-					'\t\ttick style={line width=0.8pt}}}',
-				'\t\\newcommand{\\plotToBeNamed}[2]{',
-				'\t\\begin{'+axis_type+'}[',
-					'\t\twidth=#1,',
-					'\t\theight=#2,',
-					'\t\tlegend style={at={(1.03,1)},anchor=north west},',
-					'\t\ttitle={\\TODO{Set title}},',
-					'\t\tgrid=both,',
-					'\t\tgrid style={line width=.1pt, draw=gray!10},',
-					'\t\tmajor grid style={line width=.2pt,draw=gray!50},',
-					'\t\tcycle list={',
-						'\t\t\t'+',\n\t\t\t'.join([e['style'] for e in entries]),
-					'\t\t}',
-					'\t\tlegend style={at={(1.03,1)},anchor=north west},',
-					'\t\txlabel=\\textsc{'+x_key.replace('#','\\#')+'},',
-					'\t\tylabel=\\textsc{'+y_key.replace('#','\\#')+'},',
-					'\t\t]',
-					'\t\t'+'\n\t\t'.join(texData),
-					'\t\t\\legend{',
-						'\t\t\t'+',\t\t\t'.join([e['name'] for e in entries]),
-					'}',
-				'\t\\end{'+axis_type+'}',
-			'\\end{tikzpicture}',
+			'\\newcommand{\\plotToBeNamed}[2]{',
+				'\t\\begin{tikzpicture}',
+				'\t\t\pgfplotsset{every axis/.append style={',
+					'\t\t\ttick style={line width=0.8pt}}}',
+					'\t\t\\begin{'+axis_type+'}[',
+						'\t\t\twidth=#1,',
+						'\t\t\theight=#2,',
+						'\t\t\ttitle={},% TODO: Set title',
+						'\t\t\txlabel=\\textsc{'+texify(x_key)+'},',
+						'\t\t\tylabel=\\textsc{'+texify(y_key)+'},',
+						'\t\t\txmin='+texify(xrange[0])+',',
+						'\t\t\txmax='+texify(xrange[1])+',',
+						'\t\t\tymin='+texify(yrange[0])+',',
+						'\t\t\tymax='+texify(yrange[1])+',',
+						'\t\t\t]',
+						'\t\t\t'+'\n\t\t\t'.join(texData),
+						'\t\t\t\\legend{',
+							'\t\t\t\t'+',\n\t\t\t\t'.join([
+								'{'+texify(e)+'}'
+								for e in legend_entries
+							]),
+						'\t\t\t}',
+					'\t\t\\end{'+axis_type+'}',
+				'\t\\end{tikzpicture}',
 			'}'
 		])
 		with open(path+".tex","w+") as texFile:
@@ -430,13 +444,15 @@ def update_axis_options(*dump):
 	global last_x_axis_type, last_y_axis_type
 	if keys[last_x_val]:
 		x_opts = make_dropdown_options(sub_keys[last_x_val])
-		last_x_sub_val = sub_keys[last_x_val][0]
+		if not last_x_sub_val in sub_keys[last_x_val]:
+			last_x_sub_val = sub_keys[last_x_val][0]
 	else:
 		x_opts = []
 		last_x_sub_val = None
 	if keys[last_y_val]:
 		y_opts = make_dropdown_options(sub_keys[last_y_val])
-		last_y_sub_val = sub_keys[last_y_val][0]
+		if not last_y_sub_val in sub_keys[last_y_val]:
+			last_y_sub_val = sub_keys[last_y_val][0]
 	else:
 		y_opts = []
 		last_y_sub_val = None
@@ -534,7 +550,12 @@ def selected_column(x_val,y_val):
 	 Input('xaxis-type'			, 'value'),
 	 Input('yaxis-type'			, 'value'),
 	 Input('group-checks'		, 'value'),
-	 Input('loaded-files-area'	, 'value')])
+	 Input('loaded-files-area'	, 'value'),
+	 Input('vis-x-min'			, 'value'),
+	 Input('vis-x-max'			, 'value'),
+	 Input('vis-y-min'			, 'value'),
+	 Input('vis-y-max'			, 'value')],
+	state=[dash.dependencies.State('indicator-scatter', 'figure')])
 def update_graph(	xaxis_column_sub_name,
 					x_min_val,
 					x_max_val,
@@ -544,8 +565,13 @@ def update_graph(	xaxis_column_sub_name,
 					xaxis_type,
 					yaxis_type,
 					group_checks,
-					loaded_files):
-	global data,keys,sub_keys,groups,suffix_sep
+					loaded_files,
+					vis_x_min,
+					vis_x_max,
+					vis_y_min,
+					vis_y_max,
+					old_fig):
+	global dash_cfg,data,keys,sub_keys,groups,suffix_sep
 	global last_x_val, last_x_sub_val, last_x_min_val, last_x_max_val, last_y_val, last_y_sub_val, last_y_min_val, last_y_max_val, last_x_axis_type, last_y_axis_type
 	global x_data,y_data,label_data,data_groups,group_names
 	last_x_sub_val = xaxis_column_sub_name
@@ -597,19 +623,22 @@ def update_graph(	xaxis_column_sub_name,
 		]
 		for data in data_groups
 	]
+	def float_or(s,ret):
+		try: return float(s)
+		except: return ret
 	# Crop data by min and max values
-	x_min = float(x_min_val) if len(x_min_val) > 0 else 0
-	x_max = float(x_max_val) if len(x_max_val) > 0 else math.inf
-	y_min = float(y_min_val) if len(y_min_val) > 0 else 0
-	y_max = float(y_max_val) if len(y_max_val) > 0 else math.inf
+	x_min = float_or(x_min_val,-math.inf) #float(x_min_val) if len(x_min_val) > 0 else 0
+	x_max = float_or(x_max_val,math.inf)  #float(x_max_val) if len(x_max_val) > 0 else math.inf
+	y_min = float_or(y_min_val,-math.inf) #float(y_min_val) if len(y_min_val) > 0 else 0
+	y_max = float_or(y_max_val,math.inf)  #float(y_max_val) if len(y_max_val) > 0 else math.inf
 	for i in range(len(x_data)):
 		x_data[i], y_data[i], label_data[i] = cross_filter(
 			lambda x,y,z:
 				x != "" and y != "" and z != ""
-				and float(x) >= x_min
-				and float(x) <= x_max
-				and float(y) >= y_min
-				and float(y) <= y_max,
+				and float_or(x,-math.inf) >= x_min
+				and float_or(x,+math.inf) <= x_max
+				and float_or(y,-math.inf) >= y_min
+				and float_or(y,+math.inf) <= y_max,
 			[x_data[i],y_data[i],label_data[i]])
 		if len(x_data[i]) == 0:
 			continue
@@ -618,15 +647,16 @@ def update_graph(	xaxis_column_sub_name,
 		)
 	x_data,y_data,label_data,data_groups = cross_filter(lambda xd,yd,ld,gd: len(xd) > 0 and len(yd) > 0, [x_data,y_data,label_data,data_groups])
 	# Crop data for fitting
-	x_data_fit = x_data
-	y_data_fit = y_data
 	if str(yaxis_type) == "Log":
 		x_data_fit = []
 		y_data_fit = []
 		for xd,yd in zip(x_data,y_data):
-			xrd,yrd = cross_filter(lambda x,y: float(x) > 0 and float(y) > 0, [xd,yd])
+			xrd,yrd = cross_filter(lambda x,y: float_or(x,0) > 0 and float_or(y,0) > 0, [xd,yd])
 			x_data_fit.append([math.log(float(x)) for x in xrd])
 			y_data_fit.append([math.log(float(y)) for y in yrd])
+	else:
+		x_data_fit = [[float_or(x,0) for x in d] for d in x_data]
+		y_data_fit = [[float_or(y,0) for y in d] for d in y_data]
 	# Comput power fit
 	linear_regressor = LinearRegression()  # create object for the class
 	regressions = [
@@ -640,14 +670,35 @@ def update_graph(	xaxis_column_sub_name,
 	
 	group_names = [
 		', '.join([
-			groups[gi]+": "+str(data_groups[i][0][groups[gi]])
+			str(groups[gi])+": "+str(data_groups[i][0][groups[gi]])
 			for gi in group_checks
 		])
-		+ ', ' + yaxis_type + ' regression: '
+		+ ', ' + str(yaxis_type) + ' regression: '
 		+ str(regressions[i])
 		for i in range(len(data_groups))
 	]
+	
+	def smin(l):
+		if len(l) > 0: return min(l)
+		return 0
+	def smax(l):
+		if len(l) > 0: return max(l)
+		return 0
+	x_global_min = smin([smin([float_or(x,math.inf) for x in d]) for d in x_data])
+	x_global_max = smax([smax([float_or(x,math.inf) for x in d]) for d in x_data])
+	y_global_min = smin([smin([float_or(y,math.inf) for y in d]) for d in y_data])
+	y_global_max = smax([smax([float_or(y,math.inf) for y in d]) for d in y_data])
+	x_global_delta = x_global_max-x_global_min
+	y_global_delta = y_global_max-y_global_min
+	vis_x_min = float_or(vis_x_min,x_global_min-.1*x_global_delta)
+	vis_x_max = float_or(vis_x_max,x_global_max+.1*x_global_delta)
+	vis_y_min = float_or(vis_y_min,y_global_min-.1*y_global_delta)
+	vis_y_max = float_or(vis_y_max,y_global_max+.1*y_global_delta)
 
+	if not old_fig is None:
+		invis_traces = get_invisible_trace_names(old_fig)
+	else:
+		invis_traces = []
 	return {
 		'data': [go.Scatter(
 			x=x_data[i],
@@ -657,22 +708,30 @@ def update_graph(	xaxis_column_sub_name,
 			name=group_names[i],
 			mode='markers+lines',
 			marker={
-				'size': 15,
-				'opacity': 0.5,
+				'size': float_or(dash_cfg[CONFIG_DASH_MARKER_SIZE],5),
+				'opacity': float_or(dash_cfg[CONFIG_DASH_MARKER_OPACITY],1),
 				'line': {'width': 0.5, 'color': 'white'}
-			}
+			},
+			line={
+				'width': float_or(dash_cfg[CONFIG_DASH_LINE_WIDTH],1)
+			},
+			visible=True
+				if not reduce_trace_name(group_names[i]) in invis_traces
+				else 'legendonly'
 		) for i in range(len(data_groups))],
 		'layout': go.Layout(
 			xaxis={
 				'title': x_title,
-				'type': 'linear' if xaxis_type == 'Linear' else 'log'
+				'type': 'linear' if xaxis_type == 'Linear' else 'log',
+				'range': [vis_x_min,vis_x_max]
 			},
 			yaxis={
 				'title': y_title,
-				'type': 'linear' if yaxis_type == 'Linear' else 'log'
+				'type': 'linear' if yaxis_type == 'Linear' else 'log',
+				'range': [vis_y_min,vis_y_max]
 			},
 			margin={'l': 40, 'b': 30, 't': 10, 'r': 0},
-			height=450,
+			height=int(dash_cfg[CONFIG_DASH_HEIGHT]),
 			hovermode='closest'
 		)
 	}
