@@ -1,6 +1,5 @@
 ColumnA, ColumnB min, ColumnB max, ColumnC
 1, 4, 6, 1
 7, 2, 5, 4
-This is some random text
-ColumnA, ColumnB min, ColumnB max, ColumnC
+# This is some random comment
 8, 3, 6, 1
