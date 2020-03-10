@@ -43,6 +43,10 @@ CONFIG_BASE_PATH_IS_REL = 'base_path_is_rel'
 CONFIG_SUFFIXES = 'col_suffixes'
 CONFIG_SUFFIX_SEP = 'col_suffix_sep'
 CONFIG_IGNORE_REGEX = 'ignore_regex'
+CONFIG_CSV_EXT = 'csv_extension'
+CONFIG_CSV_SEP = 'csv_separator'
+CONFIG_CSV_QUOTE = 'csv_quotes'
+CONFIG_CSV_ESCAPE = 'csv_escape_char'
 CONFIG_DASH_HEIGHT = 'plot_height'
 CONFIG_DASH_MARKER_SIZE = 'marker_size'
 CONFIG_DASH_MARKER_OPACITY = 'marker_opacity'
@@ -65,6 +69,10 @@ keys = {}
 sub_keys = {}
 suffixes = config_list(main_cfg, CONFIG_SUFFIXES)
 suffix_sep = main_cfg[CONFIG_SUFFIX_SEP][1:-1]
+csv_ext = main_cfg[CONFIG_CSV_EXT]
+csv_sep = main_cfg[CONFIG_CSV_SEP][1:-1]
+csv_quote = main_cfg[CONFIG_CSV_QUOTE][1:-1]
+csv_escape = main_cfg[CONFIG_CSV_ESCAPE][1:-1]
 groups = []
 ignore_ident = re.compile(main_cfg[CONFIG_IGNORE_REGEX])
 
@@ -81,7 +89,7 @@ def accessCol(headerKey, d):
 # Write data to CSV
 def writeFile(path,d):
 	with open(path, 'wt', newline='') as fout:
-		writer = csv.writer(fout)
+		writer = csv.writer(fout,delimiter=csv_sep, quotechar=csv_quote, escapechar=csv_escape)
 		writer.writerows(d)
 # Read file with header row and update keys
 def readFile(path,has_header=True):
@@ -91,7 +99,7 @@ def readFile(path,has_header=True):
 	int_matcher = re.compile('^[0-9]+$')
 	float_matcher = re.compile('^(([0-9]+.[0-9]*)|([0-9]*.[0-9]+))$')
 	with open(path, 'rt') as csvfile:
-		reader = csv.reader(csvfile, skipinitialspace=True, delimiter=',', quotechar='"')
+		reader = csv.reader(csvfile, skipinitialspace=True, delimiter=csv_sep, quotechar=csv_quote, escapechar=csv_escape)
 		for row in reader:
 			if row == []:
 				continue
@@ -152,7 +160,7 @@ def readInput(in_path):
 		readFile(in_path)
 	elif os.path.isdir(in_path):
 		for file in os.listdir(in_path):
-			if file.endswith(".csv"): 
+			if file.endswith("."+csv_ext): 
 				readFile(os.path.abspath(in_path)+'/'+file)
 	else:
 		return
@@ -351,7 +359,7 @@ def export_data(click_t,path,fig):
 	global suffix_sep
 	global last_export_click_t, x_data, y_data, label_data, data_groups, group_names, keys
 	global last_x_val, last_x_sub_val, last_y_val, last_y_sub_val, last_x_axis_type, last_y_axis_type
-	if ".csv" in path or ".tex" in path:
+	if "."+csv_ext in path or ".tex" in path:
 		path = path[0:len(path)-4]
 	if int(click_t) > last_export_click_t:
 		last_export_click_t = int(click_t)
@@ -369,7 +377,7 @@ def export_data(click_t,path,fig):
 			group = group_names[i]
 			for x,y in zip(x_data[i],y_data[i]):
 				dout.append([group,x,y])
-		writeFile(path+".csv",dout)
+		writeFile(path+"."+csv_ext,dout)
 
 		if last_x_axis_type == 'Linear':
 			if last_y_axis_type == 'Linear':
