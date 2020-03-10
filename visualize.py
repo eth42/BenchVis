@@ -89,7 +89,7 @@ def readFile(path,has_header=True):
 	print('Reading file '+path)
 	first_row = has_header
 	int_matcher = re.compile('^[0-9]+$')
-	float_matcher = re.compile('^([0-9]+.[0-9]*)|([0-9]*.[0-9]+)$')
+	float_matcher = re.compile('^(([0-9]+.[0-9]*)|([0-9]*.[0-9]+))$')
 	with open(path, 'rt') as csvfile:
 		reader = csv.reader(csvfile, skipinitialspace=True, delimiter=',', quotechar='"')
 		for row in reader:
@@ -382,13 +382,17 @@ def export_data(click_t,path,fig):
 		for enabled,xd,yd,gn in zip(traces_enabled,x_data,y_data,group_names):
 			if enabled:
 				texData.append(
-					'\t\t\\addplot coordinates {'+
+					'\\addplot coordinates {'+
 					' '.join(['('+texify(x)+','+texify(y)+')' for x,y in zip(xd,yd)])+
 					'};')
 				legend_entries.append(gn)
 
 		xrange = fig['layout']['xaxis']['range']
 		yrange = fig['layout']['yaxis']['range']
+		if last_x_axis_type == 'Log':
+			for i in range(2): xrange[i] = np.power(10,xrange[i])
+		if last_y_axis_type == 'Log':
+			for i in range(2): yrange[i] = np.power(10,yrange[i])
 		texCode = '\n'.join([
 			'\\newcommand{\\plotToBeNamed}[2]{',
 				'\t\\begin{tikzpicture}',
@@ -404,8 +408,13 @@ def export_data(click_t,path,fig):
 						'\t\t\txmax='+texify(xrange[1])+',',
 						'\t\t\tymin='+texify(yrange[0])+',',
 						'\t\t\tymax='+texify(yrange[1])+',',
-						'\t\t\t]',
-						'\t\t\t'+'\n\t\t\t'.join(texData),
+						'\t\t]',
+						'\t\t\t'+'\n\t\t\t'.join([
+							x
+							for name, data in
+							zip(legend_entries,texData)
+							for x in ["% "+name, data]
+						]),
 						'\t\t\t\\legend{',
 							'\t\t\t\t'+',\n\t\t\t\t'.join([
 								'{'+texify(e)+'}'
@@ -688,12 +697,20 @@ def update_graph(	xaxis_column_sub_name,
 	x_global_max = smax([smax([float_or(x,math.inf) for x in d]) for d in x_data])
 	y_global_min = smin([smin([float_or(y,math.inf) for y in d]) for d in y_data])
 	y_global_max = smax([smax([float_or(y,math.inf) for y in d]) for d in y_data])
-	x_global_delta = x_global_max-x_global_min
-	y_global_delta = y_global_max-y_global_min
-	vis_x_min = float_or(vis_x_min,x_global_min-.1*x_global_delta)
-	vis_x_max = float_or(vis_x_max,x_global_max+.1*x_global_delta)
-	vis_y_min = float_or(vis_y_min,y_global_min-.1*y_global_delta)
-	vis_y_max = float_or(vis_y_max,y_global_max+.1*y_global_delta)
+	if xaxis_type == 'Linear':
+		x_global_delta = x_global_max-x_global_min
+		vis_x_min = float_or(vis_x_min,x_global_min-.1*x_global_delta)
+		vis_x_max = float_or(vis_x_max,x_global_max+.1*x_global_delta)
+	else:
+		vis_x_min = np.log10(float_or(vis_x_min,x_global_min*.9))
+		vis_x_max = np.log10(float_or(vis_x_max,x_global_max/.9))
+	if yaxis_type == 'Linear':
+		y_global_delta = y_global_max-y_global_min
+		vis_y_min = float_or(vis_y_min,y_global_min-.1*y_global_delta)
+		vis_y_max = float_or(vis_y_max,y_global_max+.1*y_global_delta)
+	else:
+		vis_y_min = np.log10(float_or(vis_y_min,y_global_min*.9))
+		vis_y_max = np.log10(float_or(vis_y_max,y_global_max/.9))
 
 	if not old_fig is None:
 		invis_traces = get_invisible_trace_names(old_fig)
