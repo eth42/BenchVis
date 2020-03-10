@@ -276,12 +276,21 @@ app.layout = html.Div([
 		'padding': '10px 5px'
 	}),
 	html.Div([
-		dcc.Graph(
-		id='indicator-scatter'
-	)], style={
+			dcc.Graph(id='indicator-scatter'),
+			html.Div(id='modal',style={
+				'width': '100%',
+				'height': '100%',
+				'position': 'absolute',
+				'top': '0px',
+				'left': '0px',
+				'opacity': '.6',
+				'background-color': 'gray'
+			},hidden=True)
+		], style={
 		'width': '100%',
 		'display': 'inline-block',
-		'padding': '0 20'
+		'padding': '0 20',
+		'position': 'relative'
 	}),
 	html.Div(id='axis-update',style={'display':'None'})
 ])
@@ -547,9 +556,39 @@ def selected_column(x_val,y_val):
 		return "Selected different column"
 	raise dash.exceptions.PreventUpdate()
 
+@app.callback(
+	Output('modal', 'hidden'),
+	[Input('modal', 'data-hide'),
+	 Input('modal', 'data-show')])
+def toggle_modal(hide, show):
+	if hide > show:
+		return True
+	else:
+		return False
+
+@app.callback(
+	Output('modal'				, 'data-show'),
+	[Input('sub-xaxis-column'	, 'value'),
+	 Input('x-min-input'		, 'value'),
+	 Input('x-max-input'		, 'value'),
+	 Input('sub-yaxis-column'	, 'value'),
+	 Input('y-min-input'		, 'value'),
+	 Input('y-max-input'		, 'value'),
+	 Input('xaxis-type'			, 'value'),
+	 Input('yaxis-type'			, 'value'),
+	 Input('group-checks'		, 'value'),
+	 Input('loaded-files-area'	, 'value'),
+	 Input('vis-x-min'			, 'value'),
+	 Input('vis-x-max'			, 'value'),
+	 Input('vis-y-min'			, 'value'),
+	 Input('vis-y-max'			, 'value')])
+def show_modal(*args):
+	return now()
+
 # Data view selection changed
 @app.callback(
-	Output('indicator-scatter'	, 'figure'),
+	[Output('indicator-scatter'	, 'figure'),
+	 Output('modal'				, 'data-hide')],
 	[Input('sub-xaxis-column'	, 'value'),
 	 Input('x-min-input'		, 'value'),
 	 Input('x-max-input'		, 'value'),
@@ -751,7 +790,7 @@ def update_graph(	xaxis_column_sub_name,
 			height=int(dash_cfg[CONFIG_DASH_HEIGHT]),
 			hovermode='closest'
 		)
-	}
+	}, now()
 
 if __name__ == '__main__':
     app.run_server(debug=False)
