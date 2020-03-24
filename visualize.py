@@ -253,7 +253,24 @@ app.layout = html.Div([
 			make_labeled_input('vis-x-min','Min X:',''),
 			make_labeled_input('vis-x-max','Max X:',''),
 			make_labeled_input('vis-y-min','Min Y:',''),
-			make_labeled_input('vis-y-max','Max Y:','')
+			make_labeled_input('vis-y-max','Max Y:',''),
+			html.Div([
+				dcc.Checklist(
+					id='display-checks',
+					options=[
+						{'label': 'Lines', 'value': 'lines'},
+						{'label': 'Markers', 'value': 'markers'},
+						{'label': 'Texts', 'value': 'text'}
+					],
+					value=['lines','markers'],
+					labelStyle={'display': 'inline-block','margin-right': '5pt'},
+					style={
+						'max-height': '5em',
+						'overflow': 'auto',
+						'padding': '.3em'
+					}
+				)
+			])
 		),
 		make_details("Import/Export",
 			html.Div([
@@ -605,6 +622,7 @@ def show_modal(*args):
 	 Input('y-max-input'		, 'value'),
 	 Input('xaxis-type'			, 'value'),
 	 Input('yaxis-type'			, 'value'),
+	 Input('display-checks'		, 'value'),
 	 Input('group-checks'		, 'value'),
 	 Input('loaded-files-area'	, 'value'),
 	 Input('vis-x-min'			, 'value'),
@@ -620,6 +638,7 @@ def update_graph(	xaxis_column_sub_name,
 					y_max_val,
 					xaxis_type,
 					yaxis_type,
+					display_checks,
 					group_checks,
 					loaded_files,
 					vis_x_min,
@@ -638,6 +657,7 @@ def update_graph(	xaxis_column_sub_name,
 	last_y_max_val = y_max_val
 	last_x_axis_type = xaxis_type
 	last_y_axis_type = yaxis_type
+	if len(display_checks) == 0: display_checks = ['lines','markers']
 	group_checks = sorted(group_checks)
 	group_vals = {}
 	for g in [groups[i] for i in group_checks]:
@@ -770,7 +790,7 @@ def update_graph(	xaxis_column_sub_name,
 			text=label_data[i],
 			customdata=label_data[i],
 			name=group_names[i],
-			mode='markers+lines',
+			mode='+'.join(display_checks),
 			marker={
 				'size': float_or(dash_cfg[CONFIG_DASH_MARKER_SIZE],5),
 				'opacity': float_or(dash_cfg[CONFIG_DASH_MARKER_OPACITY],1),
